@@ -1,0 +1,22 @@
+{
+  "name": "backend-multiplayer",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@colyseus/redis-driver": "^0.17.7",
+    "@colyseus/redis-presence": "^0.17.7",
+    "@colyseus/ws-transport": "^0.17.13",
+    "colyseus": "^0.17.10",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "redis": "^6.2.0"
+  }
+}
