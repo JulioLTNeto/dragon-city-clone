@@ -294,15 +294,9 @@ export default function GameCanvas({
         sprite.x = item.x;
         sprite.y = item.y;
         
-        // Se este habitat estiver selecionado, fica com 80% de opacidade
-        if (selectedItemId === item._id) {
-           sprite.alpha = 0.8;
-           // Aplica um filtro de cor para destacar mais a seleção se quiser (opcional)
-           sprite.tint = 0xFFFFFF; 
-        } else {
-           sprite.alpha = 1.0;
-           sprite.tint = 0xFFFFFF;
-        }
+        // Identificadores para o sistema de seleção
+        (sprite as any).isHabitat = true;
+        (sprite as any).itemId = item._id;
         
         sprite.eventMode = 'static';
         sprite.cursor = 'pointer';
@@ -325,6 +319,9 @@ export default function GameCanvas({
               dSprite.scale.y = dSprite.scale.x;
               
               // Setup da Animação
+              const spawnOffsetX = (Math.random() * 80) - 40;
+              const spawnOffsetY = (Math.random() * 30) - 10;
+              
               (dSprite as any).isDragon = true;
               (dSprite as any).animState = {
                 startX: item.x, // Centro do habitat
@@ -334,17 +331,12 @@ export default function GameCanvas({
               };
 
               // Posicionamento inicial
-              dSprite.x = (dSprite as any).animState.startX + ((index === 0 ? -30 : 30)); 
-              dSprite.y = item.y + 10;
-
-              if (selectedItemId === item._id) {
-                 dSprite.alpha = 0.8;
-                 dSprite.tint = 0xFFFFFF; 
-              } else {
-                 dSprite.alpha = 1.0;
-                 dSprite.tint = 0xFFFFFF;
-              }
+              dSprite.x = item.x + spawnOffsetX;
+              dSprite.y = item.y + spawnOffsetY;
               
+              // Identificador para seleção
+              (dSprite as any).habitatId = item._id;
+
               dSprite.eventMode = 'static';
               dSprite.cursor = 'pointer';
               dSprite.on('pointerdown', (e) => {
@@ -361,7 +353,20 @@ export default function GameCanvas({
       }
     });
 
-  }, [placedItems, movingItemId, selectedItemId, isPixiReady]);
+  }, [placedItems, movingItemId, isPixiReady]);
+
+  // 2.5. UPDATE SELECTION APPEARANCE
+  useEffect(() => {
+    if (!placedItemsContainerRef.current || !isPixiReady) return;
+    
+    placedItemsContainerRef.current.children.forEach((child: any) => {
+       if (child.isHabitat) {
+         child.alpha = (child.itemId === selectedItemId) ? 0.8 : 1.0;
+       } else if (child.isDragon) {
+         child.alpha = (child.habitatId === selectedItemId) ? 0.8 : 1.0;
+       }
+    });
+  }, [selectedItemId, isPixiReady]);
 
   // 3. HANDLE PLACEMENT/MOVE MODE GHOST
   useEffect(() => {
