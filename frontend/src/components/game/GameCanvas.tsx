@@ -302,6 +302,16 @@ export default function GameCanvas({
                  dSprite.alpha = 1.0;
                  dSprite.tint = 0xFFFFFF;
               }
+              
+              dSprite.eventMode = 'static';
+              dSprite.cursor = 'pointer';
+              dSprite.on('pointerdown', (e) => {
+                e.stopPropagation(); 
+                const { placementMode, movingItemId } = propsRef.current;
+                if (!placementMode && !movingItemId) {
+                   setSelectedItemId(item._id);
+                }
+              });
 
               itemsContainer.addChild(dSprite);
            });
