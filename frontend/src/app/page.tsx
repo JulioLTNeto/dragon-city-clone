@@ -183,6 +183,33 @@ export default function Home() {
     }
   };
 
+  const handleUpgradeHabitat = async (habitatId: string) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:3001/api/market/upgrade", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ habitatId })
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setUserGold(data.user.gold);
+        setPlacedItems(data.user.placedItems || []);
+        alert(data.message);
+      } else {
+        alert(data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao evoluir habitat");
+    }
+  };
+
   if (!isAuthenticated) return null;
 
   return (
@@ -190,11 +217,13 @@ export default function Home() {
       <GameCanvas 
         placementMode={placementMode}
         movingItemId={movingItemId}
+        userGold={userGold}
         placedItems={placedItems}
         onConfirmPlacement={handleConfirmPlacement}
         onConfirmMove={handleConfirmMove}
         onItemMoveRequest={setMovingItemId}
         onOpenDragonsList={setViewingHabitatId}
+        onUpgradeHabitat={handleUpgradeHabitat}
       />
 
       {/* OVERLAY DE CANCELAR CONSTRUÇÃO/MOVIMENTO */}
@@ -427,7 +456,14 @@ export default function Home() {
             )}
             
             <div className="mt-6 text-center text-[#8e6024] font-black text-sm">
-              Lotação: {placedItems.find(i => i._id === viewingHabitatId)?.dragons?.length || 0} / 3
+              Lotação: {placedItems.find(i => i._id === viewingHabitatId)?.dragons?.length || 0} / {(() => {
+                const lvl = placedItems.find(i => i._id === viewingHabitatId)?.level || 1;
+                if (lvl === 1) return 3;
+                if (lvl === 2) return 6;
+                if (lvl === 3) return 10;
+                if (lvl === 4) return 15;
+                return 20;
+              })()}
             </div>
           </div>
         </div>

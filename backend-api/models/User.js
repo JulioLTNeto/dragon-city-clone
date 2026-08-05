@@ -45,7 +45,8 @@ const userSchema = new mongoose.Schema({
     itemType: String,
     x: Number,
     y: Number,
-    dragons: [String]
+    dragons: [String],
+    level: { type: Number, default: 1 }
   }],
   food: {
     type: Number,

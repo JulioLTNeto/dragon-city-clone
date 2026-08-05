@@ -65,8 +65,15 @@ router.post('/buy', protect, async (req, res) => {
       if (!habitat || habitat.itemType !== 'fire_habitat') {
         return res.status(400).json({ message: 'Habitat inválido' });
       }
-      if (habitat.dragons && habitat.dragons.length >= 3) {
-        return res.status(400).json({ message: 'Habitat cheio (máx: 3 dragões)' });
+      const level = habitat.level || 1;
+      let maxDragons = 3;
+      if (level === 2) maxDragons = 6;
+      else if (level === 3) maxDragons = 10;
+      else if (level === 4) maxDragons = 15;
+      else if (level === 5) maxDragons = 20;
+
+      if (habitat.dragons && habitat.dragons.length >= maxDragons) {
+        return res.status(400).json({ message: `Habitat cheio (máx: ${maxDragons} dragões)` });
       }
 
       user.gold -= item.cost;
@@ -159,6 +166,65 @@ router.put('/move', protect, async (req, res) => {
   } catch (error) {
     console.error('Move item error:', error);
     res.status(500).json({ message: 'Erro no servidor ao mover a construção' });
+  }
+});
+
+// @route   POST /api/market/upgrade
+// @desc    Upgrade a habitat
+// @access  Private
+router.post('/upgrade', protect, async (req, res) => {
+  try {
+    const { habitatId } = req.body;
+    const user = await User.findById(req.user.id);
+
+    if (!user) return res.status(404).json({ message: 'Usuário não encontrado' });
+
+    const habitat = user.placedItems.id(habitatId);
+    if (!habitat) return res.status(404).json({ message: 'Habitat não encontrado' });
+
+    const currentLevel = habitat.level || 1;
+    if (currentLevel >= 5) {
+      return res.status(400).json({ message: 'Habitat já está no nível máximo' });
+    }
+
+    const upgradeCosts = {
+      2: 1000,
+      3: 10000,
+      4: 50000,
+      5: 100000
+    };
+
+    const cost = upgradeCosts[currentLevel + 1];
+
+    if (user.gold < cost) {
+      return res.status(400).json({ message: 'Ouro insuficiente' });
+    }
+
+    user.gold -= cost;
+    habitat.level = currentLevel + 1;
+
+    const updatedUser = await user.save();
+
+    res.json({
+      message: `Habitat evoluído para o Nível ${habitat.level}!`,
+      user: {
+        id: updatedUser._id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        volume: updatedUser.volume,
+        gold: updatedUser.gold,
+        gems: updatedUser.gems,
+        dragons: updatedUser.dragons,
+        habitats: updatedUser.habitats,
+        islands: updatedUser.islands,
+        placedItems: updatedUser.placedItems,
+        food: updatedUser.food,
+        level: updatedUser.level
+      }
+    });
+  } catch (error) {
+    console.error('Upgrade error:', error);
+    res.status(500).json({ message: 'Erro no servidor' });
   }
 });
 

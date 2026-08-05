@@ -7,20 +7,24 @@ interface GameCanvasProps {
   placementMode?: string | null;
   movingItemId?: string | null;
   placedItems?: any[];
+  userGold?: number;
   onConfirmPlacement?: (x: number, y: number, habitatId?: string) => void;
   onConfirmMove?: (id: string, x: number, y: number) => void;
   onItemMoveRequest?: (id: string) => void;
   onOpenDragonsList?: (id: string) => void;
+  onUpgradeHabitat?: (id: string) => void;
 }
 
 export default function GameCanvas({ 
   placementMode, 
   movingItemId,
-  placedItems = [], 
+  placedItems = [],
+  userGold = 0,
   onConfirmPlacement,
   onConfirmMove,
   onItemMoveRequest,
-  onOpenDragonsList
+  onOpenDragonsList,
+  onUpgradeHabitat
 }: GameCanvasProps) {
   const [isPixiReady, setIsPixiReady] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -412,19 +416,52 @@ export default function GameCanvas({
         className="pointer-events-none"
       >
         {/* INFO BALOON ABOVE */}
-        {selectedItemId && (
-          <div className="absolute bottom-[100px] left-1/2 -translate-x-1/2 bg-black/70 px-3 py-1 rounded-md shadow flex flex-col items-center pointer-events-none min-w-[120px]">
-            <span className="text-white font-bold text-xs whitespace-nowrap drop-shadow-sm">
-              Habitat de Fogo (Nv. 1)
-            </span>
-            <span className="text-gray-300 text-[10px] font-bold mt-0.5">
-              Dragões: {placedItems.find(i => i._id === selectedItemId)?.dragons?.length || 0}/3
-            </span>
-          </div>
-        )}
+        {selectedItemId && (() => {
+          const item = placedItems.find(i => i._id === selectedItemId);
+          if (!item) return null;
+          const lvl = item.level || 1;
+          const maxDragons = lvl === 1 ? 3 : (lvl === 2 ? 6 : (lvl === 3 ? 10 : (lvl === 4 ? 15 : 20)));
+          return (
+            <div className="absolute bottom-[100px] left-1/2 -translate-x-1/2 bg-black/70 px-3 py-1 rounded-md shadow flex flex-col items-center pointer-events-none min-w-[120px]">
+              <span className="text-white font-bold text-xs whitespace-nowrap drop-shadow-sm">
+                Habitat de Fogo (Nv. {lvl})
+              </span>
+              <span className="text-gray-300 text-[10px] font-bold mt-0.5">
+                Dragões: {item.dragons?.length || 0}/{maxDragons}
+              </span>
+            </div>
+          );
+        })()}
 
         {/* BUTTONS BELOW */}
         <div className="absolute top-[90px] left-1/2 -translate-x-1/2 flex gap-2 pointer-events-auto">
+          {selectedItemId && (() => {
+            const item = placedItems.find(i => i._id === selectedItemId);
+            if (!item) return null;
+            const lvl = item.level || 1;
+            const upgradeCosts: Record<number, number> = { 2: 1000, 3: 10000, 4: 50000, 5: 100000 };
+            const nextCost = upgradeCosts[lvl + 1];
+            const isMaxLvl = lvl >= 5;
+            const canAfford = !isMaxLvl && userGold >= nextCost;
+
+            return (
+              <button 
+                disabled={!canAfford && !isMaxLvl}
+                onClick={() => {
+                  if (canAfford && onUpgradeHabitat) {
+                    onUpgradeHabitat(selectedItemId);
+                  }
+                }}
+                className={`text-xs font-black py-1.5 px-3 rounded-full border-b-4 transition-all uppercase flex gap-1 items-center shadow-lg ${
+                  isMaxLvl ? "bg-gray-500 text-gray-300 border-gray-600 cursor-not-allowed" :
+                  canAfford ? "bg-[#3498db] hover:bg-[#2980b9] text-white border-[#1f618d] active:border-b-0 active:translate-y-1" :
+                  "bg-gray-400 text-gray-600 border-gray-500 cursor-not-allowed opacity-80"
+                }`}
+              >
+                <span>⬆️</span> {isMaxLvl ? "Máx" : `${nextCost} 🪙`}
+              </button>
+            );
+          })()}
           <button 
             onClick={() => {
               if (selectedItemId && onItemMoveRequest) {
