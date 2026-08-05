@@ -162,6 +162,26 @@ export default function Home() {
     }
   };
 
+  const handleAddGold = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:3001/api/user/add-gold", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`
+        }
+      });
+      
+      const data = await res.json();
+      if (res.ok) {
+        localStorage.setItem("user", JSON.stringify(data.user));
+        setUserGold(data.user.gold);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   if (!isAuthenticated) return null;
 
   return (
@@ -199,6 +219,7 @@ export default function Home() {
         onOpenConfig={() => setIsConfigOpen(true)}
         onOpenInfo={() => setIsInfoOpen(true)}
         onOpenMarket={() => setIsMarketOpen(true)}
+        onAddGold={handleAddGold}
       />
 
       {/* MODAL DE CONFIGURAÇÃO SOBREPOSTO */}

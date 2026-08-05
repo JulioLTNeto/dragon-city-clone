@@ -8,6 +8,7 @@ interface HUDProps {
   onOpenConfig: () => void;
   onOpenInfo: () => void;
   onOpenMarket: () => void;
+  onAddGold?: () => void;
 }
 
 export default function HUD({ 
@@ -17,7 +18,8 @@ export default function HUD({
   userLevel, 
   onOpenConfig, 
   onOpenInfo,
-  onOpenMarket
+  onOpenMarket,
+  onAddGold
 }: HUDProps) {
   return (
     <div className="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4">
@@ -36,7 +38,12 @@ export default function HUD({
             <div className="flex items-center bg-[#1c2833]/80 border-2 border-[#5d6d7e] rounded-full h-8 pl-1 pr-1 shadow-lg relative min-w-[120px]">
               <span className="absolute -left-3 text-3xl drop-shadow-md">🪙</span>
               <span className="text-white font-black text-sm ml-6 w-full text-center drop-shadow-md">{userGold.toLocaleString('pt-BR')}</span>
-              <button className="bg-[#2ecc71] hover:bg-[#27ae60] text-white rounded-full w-6 h-6 flex items-center justify-center font-black border border-[#145a32] shadow-sm ml-2">+</button>
+              <button 
+                onClick={onAddGold}
+                className="bg-[#2ecc71] hover:bg-[#27ae60] active:scale-95 text-white rounded-full w-6 h-6 flex items-center justify-center font-black border border-[#145a32] shadow-sm ml-2"
+              >
+                +
+              </button>
             </div>
             <span className="text-white text-[10px] font-bold drop-shadow-md uppercase mt-1">[Ouro]</span>
           </div>
