@@ -65,8 +65,8 @@ router.post('/buy', protect, async (req, res) => {
       if (!habitat || habitat.itemType !== 'fire_habitat') {
         return res.status(400).json({ message: 'Habitat inválido' });
       }
-      if (habitat.dragons && habitat.dragons.length >= 2) {
-        return res.status(400).json({ message: 'Habitat cheio (máx: 2 dragões)' });
+      if (habitat.dragons && habitat.dragons.length >= 3) {
+        return res.status(400).json({ message: 'Habitat cheio (máx: 3 dragões)' });
       }
 
       user.gold -= item.cost;

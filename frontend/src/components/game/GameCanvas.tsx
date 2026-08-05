@@ -10,6 +10,7 @@ interface GameCanvasProps {
   onConfirmPlacement?: (x: number, y: number, habitatId?: string) => void;
   onConfirmMove?: (id: string, x: number, y: number) => void;
   onItemMoveRequest?: (id: string) => void;
+  onOpenDragonsList?: (id: string) => void;
 }
 
 export default function GameCanvas({ 
@@ -18,7 +19,8 @@ export default function GameCanvas({
   placedItems = [], 
   onConfirmPlacement,
   onConfirmMove,
-  onItemMoveRequest
+  onItemMoveRequest,
+  onOpenDragonsList
 }: GameCanvasProps) {
   const [isPixiReady, setIsPixiReady] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -33,10 +35,10 @@ export default function GameCanvas({
   const placedItemsContainerRef = useRef<PIXI.Container | null>(null);
 
   // Keeps props fresh for event listeners without re-binding
-  const propsRef = useRef({ placementMode, movingItemId, onConfirmPlacement, onConfirmMove, onItemMoveRequest, placedItems, selectedItemId });
+  const propsRef = useRef({ placementMode, movingItemId, onConfirmPlacement, onConfirmMove, onItemMoveRequest, onOpenDragonsList, placedItems, selectedItemId });
   useEffect(() => {
-    propsRef.current = { placementMode, movingItemId, onConfirmPlacement, onConfirmMove, onItemMoveRequest, placedItems, selectedItemId };
-  }, [placementMode, movingItemId, onConfirmPlacement, onConfirmMove, onItemMoveRequest, placedItems, selectedItemId]);
+    propsRef.current = { placementMode, movingItemId, onConfirmPlacement, onConfirmMove, onItemMoveRequest, onOpenDragonsList, placedItems, selectedItemId };
+  }, [placementMode, movingItemId, onConfirmPlacement, onConfirmMove, onItemMoveRequest, onOpenDragonsList, placedItems, selectedItemId]);
 
   // 1. INITIALIZE PIXI
   useEffect(() => {
@@ -128,9 +130,9 @@ export default function GameCanvas({
           if (selectedItemId && contextMenuRef.current && islandContainerRef.current) {
             const item = placedItems.find(i => i._id === selectedItemId);
             if (item) {
-              const globalPos = islandContainerRef.current.toGlobal(new PIXI.Point(item.x, item.y + 110));
+              const globalPos = islandContainerRef.current.toGlobal(new PIXI.Point(item.x, item.y));
               contextMenuRef.current.style.transform = `translate(${globalPos.x}px, ${globalPos.y}px)`;
-              contextMenuRef.current.style.display = 'flex';
+              contextMenuRef.current.style.display = 'block';
             } else {
               contextMenuRef.current.style.display = 'none';
             }
@@ -407,19 +409,45 @@ export default function GameCanvas({
       <div 
         ref={contextMenuRef}
         style={{ display: 'none', position: 'absolute', top: 0, left: 0, zIndex: 10 }}
-        className="flex gap-2 -translate-x-1/2 -translate-y-1/2 items-center justify-center pointer-events-auto"
+        className="pointer-events-none"
       >
-        <button 
-          onClick={() => {
-            if (selectedItemId && onItemMoveRequest) {
-              onItemMoveRequest(selectedItemId);
-              setSelectedItemId(null);
-            }
-          }}
-          className="bg-[#f1c40f] hover:bg-[#f39c12] text-[#5c3a11] font-black text-sm py-2 px-4 rounded-full border-b-4 border-[#d4ac0d] active:border-b-0 active:translate-y-1 transition-all uppercase flex gap-2 items-center shadow-lg"
-        >
-          <span>🖱️</span> Mover
-        </button>
+        {/* INFO BALOON ABOVE */}
+        {selectedItemId && (
+          <div className="absolute bottom-[100px] left-1/2 -translate-x-1/2 bg-black/70 px-3 py-1 rounded-md shadow flex flex-col items-center pointer-events-none min-w-[120px]">
+            <span className="text-white font-bold text-xs whitespace-nowrap drop-shadow-sm">
+              Habitat de Fogo (Nv. 1)
+            </span>
+            <span className="text-gray-300 text-[10px] font-bold mt-0.5">
+              Dragões: {placedItems.find(i => i._id === selectedItemId)?.dragons?.length || 0}/3
+            </span>
+          </div>
+        )}
+
+        {/* BUTTONS BELOW */}
+        <div className="absolute top-[90px] left-1/2 -translate-x-1/2 flex gap-2 pointer-events-auto">
+          <button 
+            onClick={() => {
+              if (selectedItemId && onItemMoveRequest) {
+                onItemMoveRequest(selectedItemId);
+                setSelectedItemId(null);
+              }
+            }}
+            className="bg-[#f1c40f] hover:bg-[#f39c12] text-[#5c3a11] font-black text-xs py-1.5 px-3 rounded-full border-b-4 border-[#d4ac0d] active:border-b-0 active:translate-y-1 transition-all uppercase flex gap-1 items-center shadow-lg"
+          >
+            <span>🖱️</span> Mover
+          </button>
+
+          <button 
+            onClick={() => {
+              if (selectedItemId && onOpenDragonsList) {
+                 onOpenDragonsList(selectedItemId);
+              }
+            }}
+            className="bg-[#2ecc71] hover:bg-[#27ae60] text-[#145a32] font-black text-xs py-1.5 px-3 rounded-full border-b-4 border-[#1e8449] active:border-b-0 active:translate-y-1 transition-all uppercase flex gap-1 items-center shadow-lg"
+          >
+            <span>🐉</span> Dragões
+          </button>
+        </div>
       </div>
 
       <div 

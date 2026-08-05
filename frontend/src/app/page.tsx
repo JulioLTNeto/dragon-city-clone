@@ -22,6 +22,7 @@ export default function Home() {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isMarketOpen, setIsMarketOpen] = useState(false);
+  const [viewingHabitatId, setViewingHabitatId] = useState<string | null>(null);
   
   const [placementMode, setPlacementMode] = useState<string | null>(null);
   const [movingItemId, setMovingItemId] = useState<string | null>(null);
@@ -192,7 +193,8 @@ export default function Home() {
         placedItems={placedItems}
         onConfirmPlacement={handleConfirmPlacement}
         onConfirmMove={handleConfirmMove}
-        onItemMoveRequest={(id) => setMovingItemId(id)}
+        onItemMoveRequest={setMovingItemId}
+        onOpenDragonsList={setViewingHabitatId}
       />
 
       {/* OVERLAY DE CANCELAR CONSTRUÇÃO/MOVIMENTO */}
@@ -386,6 +388,46 @@ export default function Home() {
                 </button>
               </div>
 
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE LISTA DE DRAGÕES DO HABITAT */}
+      {viewingHabitatId && (
+        <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-50 pointer-events-auto">
+          <div className="bg-[#f4e2b0] border-[6px] border-[#8e6024] p-8 rounded-2xl shadow-2xl w-full max-w-lg relative">
+            <button 
+              onClick={() => setViewingHabitatId(null)}
+              className="absolute -top-4 -right-4 bg-red-500 hover:bg-red-600 border-4 border-[#8e6024] text-white font-bold w-12 h-12 rounded-full text-xl"
+            >
+              X
+            </button>
+            
+            <h2 className="text-3xl font-black text-center text-[#5c3a11] mb-6 uppercase drop-shadow-md">
+              Dragões no Habitat
+            </h2>
+
+            {placedItems.find(i => i._id === viewingHabitatId)?.dragons && placedItems.find(i => i._id === viewingHabitatId)?.dragons.length > 0 ? (
+              <div className="grid grid-cols-2 gap-4">
+                {placedItems.find(i => i._id === viewingHabitatId).dragons.map((dragon: string, index: number) => (
+                  <div key={index} className="bg-white border-4 border-[#c4a162] rounded-xl p-4 flex flex-col items-center shadow-md">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-2 overflow-hidden border-2 border-red-300">
+                      <span className="text-3xl">🐉</span>
+                    </div>
+                    <h3 className="font-black text-[#5c3a11] text-sm text-center uppercase">Dragão de Fogo</h3>
+                    <p className="text-xs text-gray-500 font-bold">Nível 1</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center text-gray-500 font-bold p-8">
+                Este habitat está vazio. Compre dragões na loja!
+              </div>
+            )}
+            
+            <div className="mt-6 text-center text-[#8e6024] font-black text-sm">
+              Lotação: {placedItems.find(i => i._id === viewingHabitatId)?.dragons?.length || 0} / 3
             </div>
           </div>
         </div>
