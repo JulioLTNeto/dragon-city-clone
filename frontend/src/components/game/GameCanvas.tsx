@@ -191,7 +191,13 @@ export default function GameCanvas({
 
         app.stage.on('pointerdown', (e) => {
           const { placementMode, movingItemId, placedItems, onConfirmPlacement, onConfirmMove } = propsRef.current;
-          if ((!placementMode && !movingItemId) || !ghostSpriteRef.current || !islandContainerRef.current) return;
+          
+          if (!placementMode && !movingItemId) {
+             setSelectedItemId(null);
+             return;
+          }
+
+          if (!ghostSpriteRef.current || !islandContainerRef.current) return;
 
           // Se estiver vermelho, não faz nada (inválido)
           if (ghostSpriteRef.current.tint === 0xFF0000) return;
@@ -212,8 +218,6 @@ export default function GameCanvas({
             onConfirmPlacement(localPos.x, localPos.y, habitatId);
           } else if (movingItemId && onConfirmMove) {
             onConfirmMove(movingItemId, localPos.x, localPos.y);
-          } else {
-            setSelectedItemId(null);
           }
         });
 
@@ -258,6 +262,16 @@ export default function GameCanvas({
         sprite.x = item.x;
         sprite.y = item.y;
         
+        // Se este habitat estiver selecionado, fica com 80% de opacidade
+        if (selectedItemId === item._id) {
+           sprite.alpha = 0.8;
+           // Aplica um filtro de cor para destacar mais a seleção se quiser (opcional)
+           sprite.tint = 0xFFFFFF; 
+        } else {
+           sprite.alpha = 1.0;
+           sprite.tint = 0xFFFFFF;
+        }
+        
         sprite.eventMode = 'static';
         sprite.cursor = 'pointer';
         sprite.on('pointerdown', (e) => {
@@ -286,7 +300,7 @@ export default function GameCanvas({
       }
     });
 
-  }, [placedItems, movingItemId, isPixiReady]);
+  }, [placedItems, movingItemId, selectedItemId, isPixiReady]);
 
   // 3. HANDLE PLACEMENT/MOVE MODE GHOST
   useEffect(() => {
