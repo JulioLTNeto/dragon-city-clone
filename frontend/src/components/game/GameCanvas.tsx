@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as PIXI from "pixi.js";
 
 interface GameCanvasProps {
@@ -20,6 +20,7 @@ export default function GameCanvas({
   onConfirmMove,
   onItemClick
 }: GameCanvasProps) {
+  const [isPixiReady, setIsPixiReady] = useState(false);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   
   // Refs to access pixi objects across useEffects
@@ -166,6 +167,8 @@ export default function GameCanvas({
           }
         });
 
+        setIsPixiReady(true);
+
       } catch (error) {
         console.error("Error initializing PixiJS:", error);
       }
@@ -190,7 +193,7 @@ export default function GameCanvas({
   // 2. RENDER PLACED ITEMS
   useEffect(() => {
     const itemsContainer = placedItemsContainerRef.current;
-    if (!itemsContainer) return;
+    if (!itemsContainer || !isPixiReady) return;
 
     itemsContainer.removeChildren();
 
@@ -222,12 +225,12 @@ export default function GameCanvas({
       }
     });
 
-  }, [placedItems, movingItemId]);
+  }, [placedItems, movingItemId, isPixiReady]);
 
   // 3. HANDLE PLACEMENT/MOVE MODE GHOST
   useEffect(() => {
     const islandContainer = islandContainerRef.current;
-    if (!islandContainer) return;
+    if (!islandContainer || !isPixiReady) return;
 
     if (placementMode || movingItemId) {
       if (!ghostSpriteRef.current) {
@@ -246,7 +249,7 @@ export default function GameCanvas({
         ghostSpriteRef.current = null;
       }
     }
-  }, [placementMode, movingItemId]);
+  }, [placementMode, movingItemId, isPixiReady]);
 
   return (
     <div 
