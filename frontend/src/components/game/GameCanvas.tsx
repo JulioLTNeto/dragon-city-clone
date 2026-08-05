@@ -294,6 +294,15 @@ export default function GameCanvas({
               // Distribuir os dragões horizontalmente dentro do habitat
               dSprite.x = item.x + (index === 0 ? -30 : 30); 
               dSprite.y = item.y + 10;
+
+              if (selectedItemId === item._id) {
+                 dSprite.alpha = 0.8;
+                 dSprite.tint = 0xFFFFFF; 
+              } else {
+                 dSprite.alpha = 1.0;
+                 dSprite.tint = 0xFFFFFF;
+              }
+
               itemsContainer.addChild(dSprite);
            });
         }
