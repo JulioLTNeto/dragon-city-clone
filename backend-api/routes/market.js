@@ -8,7 +8,7 @@ const { protect } = require('../middleware/auth');
 // @access  Private
 router.post('/buy', protect, async (req, res) => {
   try {
-    const { itemId, x, y } = req.body;
+    const { itemId, x, y, habitatId } = req.body;
     const user = await User.findById(req.user.id);
 
     if (!user) {
@@ -40,31 +40,40 @@ router.post('/buy', protect, async (req, res) => {
       return res.status(400).json({ message: 'Ouro insuficiente' });
     }
 
-    // Verifica colisão espacial se x e y foram enviados
-    if (x !== undefined && y !== undefined) {
-      const distToCenter = Math.hypot(x, y);
-      if (distToCenter > 180) {
-        return res.status(400).json({ message: 'Local inválido: Fora da ilha.' });
-      }
-      for (const placed of user.placedItems) {
-        const distToPlaced = Math.hypot(x - placed.x, y - placed.y);
-        if (distToPlaced < 80) {
-          return res.status(400).json({ message: 'Local inválido: Muito perto de outra construção.' });
+    // Lógica de compra
+    if (item.type === 'habitat') {
+      // Verifica colisão espacial se x e y foram enviados
+      if (x !== undefined && y !== undefined) {
+        const distToCenter = Math.hypot(x, y);
+        if (distToCenter > 180) {
+          return res.status(400).json({ message: 'Local inválido: Fora da ilha.' });
+        }
+        for (const placed of user.placedItems) {
+          const distToPlaced = Math.hypot(x - placed.x, y - placed.y);
+          if (distToPlaced < 80) {
+            return res.status(400).json({ message: 'Local inválido: Muito perto de outra construção.' });
+          }
         }
       }
-    }
-
-    // Deduz o custo
-    user.gold -= item.cost;
-
-    // Adiciona o item
-    if (item.type === 'habitat') {
+      user.gold -= item.cost;
       user.habitats += 1;
-      if (x !== undefined && y !== undefined) {
-        user.placedItems.push({ itemType: itemId, x, y });
-      }
+      user.placedItems.push({ itemType: itemId, x, y, dragons: [] });
     } else if (item.type === 'dragon') {
+      if (!habitatId) return res.status(400).json({ message: 'Selecione um habitat para o dragão' });
+      
+      const habitat = user.placedItems.id(habitatId);
+      if (!habitat || habitat.itemType !== 'fire_habitat') {
+        return res.status(400).json({ message: 'Habitat inválido' });
+      }
+      if (habitat.dragons && habitat.dragons.length >= 2) {
+        return res.status(400).json({ message: 'Habitat cheio (máx: 2 dragões)' });
+      }
+
+      user.gold -= item.cost;
       user.dragons += 1;
+      
+      if (!habitat.dragons) habitat.dragons = [];
+      habitat.dragons.push('fire_dragon');
     }
 
     const updatedUser = await user.save();

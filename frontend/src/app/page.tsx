@@ -96,7 +96,7 @@ export default function Home() {
     setIsMarketOpen(false);
   };
 
-  const handleConfirmPlacement = async (x: number, y: number) => {
+  const handleConfirmPlacement = async (x: number, y: number, habitatId?: string) => {
     if (!placementMode) return;
     
     try {
@@ -107,7 +107,7 @@ export default function Home() {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({ itemId: placementMode, x, y })
+        body: JSON.stringify({ itemId: placementMode, x, y, habitatId })
       });
       
       const data = await res.json();
@@ -333,7 +333,8 @@ export default function Home() {
                 
                 <button 
                   onClick={() => handleStartPlacement('fire_habitat')}
-                  className="w-full bg-[#f1c40f] hover:bg-[#f39c12] text-[#5c3a11] font-black py-3 px-4 rounded-xl border-b-4 border-[#d4ac0d] active:border-b-0 active:translate-y-1 transition-all uppercase flex items-center justify-center gap-2"
+                  disabled={userGold < 100}
+                  className={`w-full font-black py-3 px-4 rounded-xl border-b-4 transition-all uppercase flex items-center justify-center gap-2 ${userGold >= 100 ? "bg-[#f1c40f] hover:bg-[#f39c12] text-[#5c3a11] border-[#d4ac0d] active:border-b-0 active:translate-y-1" : "bg-gray-400 text-gray-600 border-gray-500 cursor-not-allowed opacity-70"}`}
                 >
                   <span>Comprar</span>
                   <div className="bg-[#1c2833] text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 border border-[#5d6d7e]">
@@ -353,7 +354,8 @@ export default function Home() {
                 
                 <button 
                   onClick={() => handleStartPlacement('fire_dragon_egg')}
-                  className="w-full bg-[#f1c40f] hover:bg-[#f39c12] text-[#5c3a11] font-black py-3 px-4 rounded-xl border-b-4 border-[#d4ac0d] active:border-b-0 active:translate-y-1 transition-all uppercase flex items-center justify-center gap-2"
+                  disabled={userGold < 500}
+                  className={`w-full font-black py-3 px-4 rounded-xl border-b-4 transition-all uppercase flex items-center justify-center gap-2 ${userGold >= 500 ? "bg-[#f1c40f] hover:bg-[#f39c12] text-[#5c3a11] border-[#d4ac0d] active:border-b-0 active:translate-y-1" : "bg-gray-400 text-gray-600 border-gray-500 cursor-not-allowed opacity-70"}`}
                 >
                   <span>Comprar</span>
                   <div className="bg-[#1c2833] text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 border border-[#5d6d7e]">

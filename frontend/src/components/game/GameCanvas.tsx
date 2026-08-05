@@ -7,7 +7,7 @@ interface GameCanvasProps {
   placementMode?: string | null;
   movingItemId?: string | null;
   placedItems?: any[];
-  onConfirmPlacement?: (x: number, y: number) => void;
+  onConfirmPlacement?: (x: number, y: number, habitatId?: string) => void;
   onConfirmMove?: (id: string, x: number, y: number) => void;
   onItemMoveRequest?: (id: string) => void;
 }
@@ -153,18 +153,36 @@ export default function GameCanvas({
           ghost.x = localPos.x;
           ghost.y = localPos.y;
 
-          // Lógica Visual de Colisão
           let isValid = true;
-          if (Math.hypot(ghost.x, ghost.y) > 180) isValid = false; // Fora da ilha
-          
-          for (const item of placedItems) {
-             // Se estamos movendo um item, ignoramos a colisão dele com ele mesmo
-             if (movingItemId && item._id === movingItemId) continue;
 
-             if (Math.hypot(ghost.x - item.x, ghost.y - item.y) < 80) {
-                 isValid = false; 
-                 break;
+          // Se estiver comprando um Dragão, a lógica de colisão é diferente
+          if (placementMode === 'fire_dragon_egg') {
+             isValid = false; // Por padrão, vermelho
+             for (const item of placedItems) {
+               if (item.itemType === 'fire_habitat') {
+                  const dist = Math.hypot(ghost.x - item.x, ghost.y - item.y);
+                  if (dist < 80) {
+                     // Snaps to habitat e fica verde
+                     ghost.x = item.x;
+                     ghost.y = item.y;
+                     isValid = true;
+                     break;
+                  }
+               }
              }
+          } else {
+            // Lógica Padrão (Colocando Prédio ou Movendo Prédio)
+            if (Math.hypot(ghost.x, ghost.y) > 180) isValid = false; // Fora da ilha
+            
+            for (const item of placedItems) {
+               // Ignora colisão dele com ele mesmo
+               if (movingItemId && item._id === movingItemId) continue;
+
+               if (Math.hypot(ghost.x - item.x, ghost.y - item.y) < 80) {
+                   isValid = false; 
+                   break;
+               }
+            }
           }
 
           ghost.tint = isValid ? 0x00FF00 : 0xFF0000;
@@ -172,7 +190,7 @@ export default function GameCanvas({
         });
 
         app.stage.on('pointerdown', (e) => {
-          const { placementMode, movingItemId, onConfirmPlacement, onConfirmMove } = propsRef.current;
+          const { placementMode, movingItemId, placedItems, onConfirmPlacement, onConfirmMove } = propsRef.current;
           if ((!placementMode && !movingItemId) || !ghostSpriteRef.current || !islandContainerRef.current) return;
 
           // Se estiver vermelho, não faz nada (inválido)
@@ -181,11 +199,20 @@ export default function GameCanvas({
           const localPos = islandContainerRef.current.toLocal(e.global);
           
           if (placementMode && onConfirmPlacement) {
-            onConfirmPlacement(localPos.x, localPos.y);
+            let habitatId = undefined;
+            if (placementMode === 'fire_dragon_egg') {
+               for (const item of placedItems) {
+                 const dist = Math.hypot(localPos.x - item.x, localPos.y - item.y);
+                 if (dist < 80 && item.itemType === 'fire_habitat') {
+                    habitatId = item._id;
+                    break;
+                 }
+               }
+            }
+            onConfirmPlacement(localPos.x, localPos.y, habitatId);
           } else if (movingItemId && onConfirmMove) {
             onConfirmMove(movingItemId, localPos.x, localPos.y);
           } else {
-            // Se clicou na ilha (fundo) e não num prédio, remove a seleção
             setSelectedItemId(null);
           }
         });
@@ -221,7 +248,6 @@ export default function GameCanvas({
     itemsContainer.removeChildren();
 
     placedItems.forEach(item => {
-      // Se este item estiver sendo movido, não o renderizamos aqui, pois o fantasma representará ele
       if (movingItemId === item._id) return;
 
       if (item.itemType === 'fire_habitat') {
@@ -232,11 +258,10 @@ export default function GameCanvas({
         sprite.x = item.x;
         sprite.y = item.y;
         
-        // Interatividade: Permitir clicar para mover
         sprite.eventMode = 'static';
         sprite.cursor = 'pointer';
         sprite.on('pointerdown', (e) => {
-          e.stopPropagation(); // Impede de clicar no mapa
+          e.stopPropagation(); 
           const { placementMode, movingItemId } = propsRef.current;
           if (!placementMode && !movingItemId) {
              setSelectedItemId(item._id);
@@ -244,6 +269,20 @@ export default function GameCanvas({
         });
 
         itemsContainer.addChild(sprite);
+
+        // RENDER DRAGONS INSIDE HABITAT
+        if (item.dragons && item.dragons.length > 0) {
+           item.dragons.forEach((dragonType: string, index: number) => {
+              const dSprite = PIXI.Sprite.from(dragonType === 'fire_dragon' ? "dragon" : "dragon");
+              dSprite.anchor.set(0.5);
+              dSprite.width = 60;
+              dSprite.scale.y = dSprite.scale.x;
+              // Distribuir os dragões horizontalmente dentro do habitat
+              dSprite.x = item.x + (index === 0 ? -30 : 30); 
+              dSprite.y = item.y + 10;
+              itemsContainer.addChild(dSprite);
+           });
+        }
       }
     });
 
@@ -256,9 +295,12 @@ export default function GameCanvas({
 
     if (placementMode || movingItemId) {
       if (!ghostSpriteRef.current) {
-        const ghost = PIXI.Sprite.from("habitat"); 
+        let textureName = "habitat";
+        if (placementMode === 'fire_dragon_egg') textureName = "dragon";
+        
+        const ghost = PIXI.Sprite.from(textureName); 
         ghost.anchor.set(0.5);
-        ghost.width = 150;
+        ghost.width = textureName === 'dragon' ? 60 : 150;
         ghost.scale.y = ghost.scale.x;
         ghost.alpha = 0.7;
         islandContainer.addChild(ghost);
@@ -282,7 +324,6 @@ export default function GameCanvas({
 
   return (
     <div className="relative w-full h-screen">
-      {/* HTML Overlay para menus de contexto (segue o PixiJS no ticker) */}
       <div 
         ref={contextMenuRef}
         style={{ display: 'none', position: 'absolute', top: 0, left: 0, zIndex: 10 }}

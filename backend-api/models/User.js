@@ -44,7 +44,8 @@ const userSchema = new mongoose.Schema({
   placedItems: [{
     itemType: String,
     x: Number,
-    y: Number
+    y: Number,
+    dragons: [String]
   }],
   food: {
     type: Number,
