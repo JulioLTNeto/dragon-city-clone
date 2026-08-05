@@ -137,6 +137,38 @@ export default function GameCanvas({
           } else if (contextMenuRef.current) {
             contextMenuRef.current.style.display = 'none';
           }
+
+          // --- ANIMATE DRAGONS ---
+          if (placedItemsContainerRef.current) {
+            placedItemsContainerRef.current.children.forEach((child: any) => {
+              if (child.isDragon && child.animState) {
+                const state = child.animState;
+                
+                if (state.pauseTimer > 0) {
+                  state.pauseTimer -= ticker.deltaTime;
+                } else {
+                  // Mover em direção ao alvo
+                  const targetX = state.startX + state.targetOffset;
+                  const dx = targetX - child.x;
+                  
+                  // Virar o dragão para a direção do movimento
+                  // Assumindo que a imagem original do dragão olha para a esquerda
+                  child.scale.x = dx > 0 ? -Math.abs(child.scale.y) : Math.abs(child.scale.y);
+
+                  if (Math.abs(dx) < 1) {
+                    child.x = targetX;
+                    // Ao chegar, escolhe um novo alvo aleatório no habitat (limite +- 40px)
+                    state.targetOffset = (Math.random() * 80) - 40;
+                    // Pausa aleatória entre 0 e 5 segundos (60fps * 5 = 300 frames)
+                    state.pauseTimer = Math.random() * 300; 
+                  } else {
+                    // Move gradualmente (Velocidade ajustada para completar o percurso em ~10s a 15s)
+                    child.x += Math.sign(dx) * state.speed * ticker.deltaTime;
+                  }
+                }
+              }
+            });
+          }
         });
 
         // --- INTERACTIVITY (PLACEMENT/MOVE MODE) ---
@@ -291,8 +323,18 @@ export default function GameCanvas({
               dSprite.anchor.set(0.5);
               dSprite.width = 60;
               dSprite.scale.y = dSprite.scale.x;
-              // Distribuir os dragões horizontalmente dentro do habitat
-              dSprite.x = item.x + (index === 0 ? -30 : 30); 
+              
+              // Setup da Animação
+              (dSprite as any).isDragon = true;
+              (dSprite as any).animState = {
+                startX: item.x, // Centro do habitat
+                targetOffset: (Math.random() * 80) - 40, // Ponto inicial aleatório
+                speed: 0.1 + Math.random() * 0.05, // pixels por frame (lento)
+                pauseTimer: Math.random() * 60, // pausa inicial
+              };
+
+              // Posicionamento inicial
+              dSprite.x = (dSprite as any).animState.startX + ((index === 0 ? -30 : 30)); 
               dSprite.y = item.y + 10;
 
               if (selectedItemId === item._id) {
