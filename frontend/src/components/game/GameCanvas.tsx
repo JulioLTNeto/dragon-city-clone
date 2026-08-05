@@ -123,7 +123,7 @@ export default function GameCanvas({
         app.stage.addChild(islandContainer);
 
         // --- SYNC CONTEXT MENU TO SCREEN ---
-        app.ticker.add(() => {
+        app.ticker.add((ticker) => {
           const { selectedItemId, placedItems } = propsRef.current;
           if (selectedItemId && contextMenuRef.current && islandContainerRef.current) {
             const item = placedItems.find(i => i._id === selectedItemId);
@@ -152,8 +152,8 @@ export default function GameCanvas({
                   const dx = targetX - child.x;
                   
                   // Virar o dragão para a direção do movimento
-                  // Assumindo que a imagem original do dragão olha para a esquerda
-                  child.scale.x = dx > 0 ? -Math.abs(child.scale.y) : Math.abs(child.scale.y);
+                  // Assumindo que a imagem original do dragão olha para a direita
+                  child.scale.x = dx > 0 ? Math.abs(child.scale.y) : -Math.abs(child.scale.y);
 
                   if (Math.abs(dx) < 1) {
                     child.x = targetX;
