@@ -126,6 +126,17 @@ export default function Home() {
     }
   };
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setPlacementMode(null);
+        setMovingItemId(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const handleConfirmMove = async (itemId: string, x: number, y: number) => {
     try {
       const token = localStorage.getItem("token");
@@ -161,20 +172,20 @@ export default function Home() {
         placedItems={placedItems}
         onConfirmPlacement={handleConfirmPlacement}
         onConfirmMove={handleConfirmMove}
-        onItemClick={(id) => setMovingItemId(id)}
+        onItemMoveRequest={(id) => setMovingItemId(id)}
       />
 
       {/* OVERLAY DE CANCELAR CONSTRUÇÃO/MOVIMENTO */}
       {(placementMode || movingItemId) && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 pointer-events-auto">
           <button 
             onClick={() => {
               setPlacementMode(null);
               setMovingItemId(null);
             }}
-            className="bg-red-500 hover:bg-red-600 text-white font-black py-2 px-6 rounded-full border-4 border-white shadow-xl uppercase"
+            className="bg-red-500 hover:bg-red-600 text-white font-bold text-sm py-2 px-6 rounded-full border-2 border-white shadow-xl uppercase flex items-center gap-2"
           >
-            Cancelar
+            <span>❌</span> Cancelar (ESC)
           </button>
         </div>
       )}

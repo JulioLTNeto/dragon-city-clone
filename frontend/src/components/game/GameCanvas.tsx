@@ -9,7 +9,7 @@ interface GameCanvasProps {
   placedItems?: any[];
   onConfirmPlacement?: (x: number, y: number) => void;
   onConfirmMove?: (id: string, x: number, y: number) => void;
-  onItemClick?: (id: string) => void;
+  onItemMoveRequest?: (id: string) => void;
 }
 
 export default function GameCanvas({ 
@@ -18,10 +18,13 @@ export default function GameCanvas({
   placedItems = [], 
   onConfirmPlacement,
   onConfirmMove,
-  onItemClick
+  onItemMoveRequest
 }: GameCanvasProps) {
   const [isPixiReady, setIsPixiReady] = useState(false);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   
   // Refs to access pixi objects across useEffects
   const appRef = useRef<PIXI.Application | null>(null);
@@ -30,10 +33,10 @@ export default function GameCanvas({
   const placedItemsContainerRef = useRef<PIXI.Container | null>(null);
 
   // Keeps props fresh for event listeners without re-binding
-  const propsRef = useRef({ placementMode, movingItemId, onConfirmPlacement, onConfirmMove, onItemClick, placedItems });
+  const propsRef = useRef({ placementMode, movingItemId, onConfirmPlacement, onConfirmMove, onItemMoveRequest, placedItems, selectedItemId });
   useEffect(() => {
-    propsRef.current = { placementMode, movingItemId, onConfirmPlacement, onConfirmMove, onItemClick, placedItems };
-  }, [placementMode, movingItemId, onConfirmPlacement, onConfirmMove, onItemClick, placedItems]);
+    propsRef.current = { placementMode, movingItemId, onConfirmPlacement, onConfirmMove, onItemMoveRequest, placedItems, selectedItemId };
+  }, [placementMode, movingItemId, onConfirmPlacement, onConfirmMove, onItemMoveRequest, placedItems, selectedItemId]);
 
   // 1. INITIALIZE PIXI
   useEffect(() => {
@@ -119,6 +122,23 @@ export default function GameCanvas({
         islandContainer.addChild(itemsContainer);
         app.stage.addChild(islandContainer);
 
+        // --- SYNC CONTEXT MENU TO SCREEN ---
+        app.ticker.add(() => {
+          const { selectedItemId, placedItems } = propsRef.current;
+          if (selectedItemId && contextMenuRef.current && islandContainerRef.current) {
+            const item = placedItems.find(i => i._id === selectedItemId);
+            if (item) {
+              const globalPos = islandContainerRef.current.toGlobal(new PIXI.Point(item.x, item.y + 110));
+              contextMenuRef.current.style.transform = `translate(${globalPos.x}px, ${globalPos.y}px)`;
+              contextMenuRef.current.style.display = 'flex';
+            } else {
+              contextMenuRef.current.style.display = 'none';
+            }
+          } else if (contextMenuRef.current) {
+            contextMenuRef.current.style.display = 'none';
+          }
+        });
+
         // --- INTERACTIVITY (PLACEMENT/MOVE MODE) ---
         app.stage.eventMode = 'static';
         app.stage.hitArea = new PIXI.Rectangle(-10000, -10000, 20000, 20000); 
@@ -164,6 +184,9 @@ export default function GameCanvas({
             onConfirmPlacement(localPos.x, localPos.y);
           } else if (movingItemId && onConfirmMove) {
             onConfirmMove(movingItemId, localPos.x, localPos.y);
+          } else {
+            // Se clicou na ilha (fundo) e não num prédio, remove a seleção
+            setSelectedItemId(null);
           }
         });
 
@@ -213,11 +236,10 @@ export default function GameCanvas({
         sprite.eventMode = 'static';
         sprite.cursor = 'pointer';
         sprite.on('pointerdown', (e) => {
-          e.stopPropagation(); // Impede de clicar no mapa e acionar a confirmação de uma vez
-          const { onItemClick, placementMode, movingItemId } = propsRef.current;
-          // Só pode selecionar se não estiver já no meio de uma construção ou movimento
-          if (!placementMode && !movingItemId && onItemClick) {
-             onItemClick(item._id);
+          e.stopPropagation(); // Impede de clicar no mapa
+          const { placementMode, movingItemId } = propsRef.current;
+          if (!placementMode && !movingItemId) {
+             setSelectedItemId(item._id);
           }
         });
 
@@ -251,10 +273,38 @@ export default function GameCanvas({
     }
   }, [placementMode, movingItemId, isPixiReady]);
 
+  // Quando o move mode ativa, a seleção some
+  useEffect(() => {
+    if (movingItemId) {
+      setSelectedItemId(null);
+    }
+  }, [movingItemId]);
+
   return (
-    <div 
-      ref={canvasContainerRef} 
-      className={`w-full h-screen overflow-hidden ${(placementMode || movingItemId) ? 'cursor-crosshair' : ''}`} 
-    />
+    <div className="relative w-full h-screen">
+      {/* HTML Overlay para menus de contexto (segue o PixiJS no ticker) */}
+      <div 
+        ref={contextMenuRef}
+        style={{ display: 'none', position: 'absolute', top: 0, left: 0, zIndex: 10 }}
+        className="flex gap-2 -translate-x-1/2 -translate-y-1/2 items-center justify-center pointer-events-auto"
+      >
+        <button 
+          onClick={() => {
+            if (selectedItemId && onItemMoveRequest) {
+              onItemMoveRequest(selectedItemId);
+              setSelectedItemId(null);
+            }
+          }}
+          className="bg-[#f1c40f] hover:bg-[#f39c12] text-[#5c3a11] font-black text-sm py-2 px-4 rounded-full border-b-4 border-[#d4ac0d] active:border-b-0 active:translate-y-1 transition-all uppercase flex gap-2 items-center shadow-lg"
+        >
+          <span>🖱️</span> Mover
+        </button>
+      </div>
+
+      <div 
+        ref={canvasContainerRef} 
+        className={`w-full h-full overflow-hidden ${(placementMode || movingItemId) ? 'cursor-crosshair' : ''}`} 
+      />
+    </div>
   );
 }
