@@ -79,8 +79,8 @@ export class GlobalRoom extends Room {
       if (challengerClient && player && challengerPlayer) {
         try {
           const battleRoom = await matchMaker.createRoom("battle_room", {});
-          const reservation1 = await matchMaker.reserveSeatFor(battleRoom, { name: player.playerName });
-          const reservation2 = await matchMaker.reserveSeatFor(battleRoom, { name: challengerPlayer.playerName });
+          const reservation1 = await matchMaker.reserveSeatFor(battleRoom, { name: player.playerName, role: "challenged" });
+          const reservation2 = await matchMaker.reserveSeatFor(battleRoom, { name: challengerPlayer.playerName, role: "challenger" });
           
           client.send("battle_ready", { reservation: reservation1 });
           challengerClient.send("battle_ready", { reservation: reservation2 });

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import * as Colyseus from "colyseus.js";
+import CoinTossOverlay from "./CoinTossOverlay";
 
 interface BattleScreenProps {
   room: Colyseus.Room;
@@ -12,6 +13,9 @@ interface BattleScreenProps {
 export default function BattleScreen({ room, userName, onFlee }: BattleScreenProps) {
   const [myPlayer, setMyPlayer] = useState<any>(null);
   const [opponent, setOpponent] = useState<any>(null);
+  const [battlePhase, setBattlePhase] = useState<string>("lobby");
+  const [coinTossResult, setCoinTossResult] = useState<string>("");
+  const [currentTurn, setCurrentTurn] = useState<string>("");
 
   useEffect(() => {
     const handleStateChange = (state: any) => {
@@ -29,6 +33,10 @@ export default function BattleScreen({ room, userName, onFlee }: BattleScreenPro
       // Clone objects for state update to force re-render if necessary
       setMyPlayer(me ? { ...me, dragons: Array.from(me.dragons || []) } : null);
       setOpponent(opp ? { ...opp, dragons: Array.from(opp.dragons || []) } : null);
+      
+      setBattlePhase(state.phase);
+      setCoinTossResult(state.coinTossResult);
+      setCurrentTurn(state.currentTurn);
     };
 
     room.onStateChange(handleStateChange);
@@ -100,8 +108,21 @@ export default function BattleScreen({ room, userName, onFlee }: BattleScreenPro
     );
   };
 
+  const isMyTurn = currentTurn === myPlayer?.sessionId;
+
   return (
     <div className="fixed inset-0 z-[200] flex flex-col bg-[#1e272e] overflow-hidden">
+      
+      {/* COIN TOSS OVERLAY */}
+      {battlePhase === "coin_toss" && (
+        <CoinTossOverlay 
+          result={coinTossResult} 
+          myPlayer={myPlayer} 
+          opponent={opponent} 
+          currentTurn={currentTurn} 
+        />
+      )}
+
       {/* ARENA BACKGROUND */}
       <div className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-gradient-to-b from-[#2c3e50] via-[#34495e] to-[#000000] opacity-90" />
@@ -146,12 +167,28 @@ export default function BattleScreen({ room, userName, onFlee }: BattleScreenPro
       <div className="relative z-10 h-48 bg-gradient-to-t from-black via-black/90 to-transparent p-6 flex flex-col justify-end">
         <div className="flex justify-between items-end w-full max-w-7xl mx-auto">
           <div className="flex-1">
-            <h3 className="text-white/80 font-black uppercase mb-2 text-sm tracking-widest">Ações</h3>
+            <h3 className="text-white/80 font-black uppercase mb-2 text-sm tracking-widest">
+              Ações {isMyTurn ? <span className="text-[#2ecc71]">(SEU TURNO)</span> : <span className="text-white/30">(Aguarde...)</span>}
+            </h3>
             <div className="flex gap-4">
-              <button className="bg-white/10 border-2 border-white/20 hover:border-white/50 text-white/50 hover:text-white px-8 py-4 rounded-xl font-bold uppercase transition-all">
+              <button 
+                disabled={!isMyTurn}
+                className={`border-2 px-8 py-4 rounded-xl font-bold uppercase transition-all ${
+                  isMyTurn 
+                    ? 'bg-[#e74c3c] hover:bg-[#c0392b] border-[#c0392b] text-white shadow-[0_0_15px_rgba(231,76,60,0.5)]' 
+                    : 'bg-white/5 border-white/10 text-white/30 cursor-not-allowed'
+                }`}
+              >
                 Ataque Físico
               </button>
-              <button className="bg-white/10 border-2 border-white/20 hover:border-white/50 text-white/50 hover:text-white px-8 py-4 rounded-xl font-bold uppercase transition-all">
+              <button 
+                disabled={!isMyTurn}
+                className={`border-2 px-8 py-4 rounded-xl font-bold uppercase transition-all ${
+                  isMyTurn 
+                    ? 'bg-[#9b59b6] hover:bg-[#8e44ad] border-[#8e44ad] text-white shadow-[0_0_15px_rgba(155,89,182,0.5)]' 
+                    : 'bg-white/5 border-white/10 text-white/30 cursor-not-allowed'
+                }`}
+              >
                 Magia
               </button>
             </div>

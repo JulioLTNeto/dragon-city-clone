@@ -3,10 +3,11 @@ import * as schema from '@colyseus/schema';
 const { Schema, MapSchema, ArraySchema, type } = schema;
 
 class BattlePlayer extends Schema {
-  constructor(sessionId, playerName) {
+  constructor(sessionId, playerName, role) {
     super();
     this.sessionId = sessionId;
     this.playerName = playerName;
+    this.role = role;
     this.isReady = false;
     this.dragons = new ArraySchema();
   }
@@ -14,6 +15,7 @@ class BattlePlayer extends Schema {
 schema.defineTypes(BattlePlayer, {
   sessionId: "string",
   playerName: "string",
+  role: "string",
   isReady: "boolean",
   dragons: ["string"]
 });
@@ -22,12 +24,16 @@ class BattleState extends Schema {
   constructor() {
     super();
     this.players = new MapSchema();
-    this.phase = "lobby"; // lobby, battle, ended
+    this.phase = "lobby"; // lobby, coin_toss, battle, ended
+    this.currentTurn = "";
+    this.coinTossResult = "";
   }
 }
 schema.defineTypes(BattleState, {
   players: { map: BattlePlayer },
-  phase: "string"
+  phase: "string",
+  currentTurn: "string",
+  coinTossResult: "string"
 });
 
 export class BattleRoom extends Room {
@@ -63,14 +69,32 @@ export class BattleRoom extends Room {
     });
 
     if (playerCount === 2 && allReady) {
-      this.state.phase = "battle";
+      this.state.phase = "coin_toss";
+      
+      const isChallengerFirst = Math.random() < 0.5;
+      const result = isChallengerFirst ? "cara" : "coroa";
+      
+      let firstTurnSessionId = "";
+      this.state.players.forEach((player) => {
+        if ((result === "cara" && player.role === "challenger") || (result === "coroa" && player.role === "challenged")) {
+          firstTurnSessionId = player.sessionId;
+        }
+      });
+      
+      this.state.coinTossResult = result;
+      this.state.currentTurn = firstTurnSessionId;
+
+      this.clock.setTimeout(() => {
+        this.state.phase = "battle";
+      }, 5000);
     }
   }
 
   onJoin(client, options) {
     const pName = options.name || "Desafiante";
-    this.state.players.set(client.sessionId, new BattlePlayer(client.sessionId, pName));
-    console.log(`[BattleRoom] ${pName} (${client.sessionId}) joined!`);
+    const pRole = options.role || "challenger";
+    this.state.players.set(client.sessionId, new BattlePlayer(client.sessionId, pName, pRole));
+    console.log(`[BattleRoom] ${pName} (${client.sessionId}) joined as ${pRole}!`);
   }
 
   onLeave(client, consented) {

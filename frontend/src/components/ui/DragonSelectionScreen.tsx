@@ -43,7 +43,7 @@ export default function DragonSelectionScreen({ userName, reservation, placedIte
         setRoom(r);
 
         r.onStateChange((state: any) => {
-          if (state.phase === "battle") {
+          if (state.phase === "coin_toss" || state.phase === "battle") {
             onBattleStart(r);
             return;
           }
