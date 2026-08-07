@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import HUD from "@/components/ui/HUD";
 import MultiplayerChat from "@/components/ui/MultiplayerChat";
 import DragonSelectionScreen from "@/components/ui/DragonSelectionScreen";
+import BattleScreen from "@/components/ui/BattleScreen";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -31,6 +32,7 @@ export default function Home() {
   const [placedItems, setPlacedItems] = useState<any[]>([]);
 
   const [battleReservation, setBattleReservation] = useState<any>(null);
+  const [activeBattleRoom, setActiveBattleRoom] = useState<any>(null);
   const [isMultiplayerOpen, setIsMultiplayerOpen] = useState(false);
   const [multiplayerTab, setMultiplayerTab] = useState<"chat" | "players">("chat");
 
@@ -500,16 +502,25 @@ export default function Home() {
       )}
 
       {/* BATTLE SELECTION SCREEN */}
-      {battleReservation && (
+      {battleReservation && !activeBattleRoom && (
         <DragonSelectionScreen 
           reservation={battleReservation}
           userName={userName}
           placedItems={placedItems}
           onClose={() => setBattleReservation(null)}
           onBattleStart={(room) => {
-            alert("🔥 A BATALHA VAI COMEÇAR! (Esta tela será feita no futuro)");
-            // Depois será criada a transição para a BattleScreen de verdade.
+            setActiveBattleRoom(room);
+            setBattleReservation(null);
           }}
+        />
+      )}
+
+      {/* BATTLE ARENA */}
+      {activeBattleRoom && (
+        <BattleScreen 
+          room={activeBattleRoom}
+          userName={userName}
+          onFlee={() => setActiveBattleRoom(null)}
         />
       )}
 
