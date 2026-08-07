@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import * as Colyseus from "colyseus.js";
 import CoinTossOverlay from "./CoinTossOverlay";
 
@@ -16,6 +16,10 @@ export default function BattleScreen({ room, userName, onFlee }: BattleScreenPro
   const [battlePhase, setBattlePhase] = useState<string>("lobby");
   const [coinTossResult, setCoinTossResult] = useState<string>("");
   const [currentTurn, setCurrentTurn] = useState<string>("");
+  const [winnerSessionId, setWinnerSessionId] = useState<string>("");
+
+  const slotRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const [activeAnimations, setActiveAnimations] = useState<any[]>([]);
 
   useEffect(() => {
     const handleStateChange = (state: any) => {
@@ -37,6 +41,7 @@ export default function BattleScreen({ room, userName, onFlee }: BattleScreenPro
       setBattlePhase(state.phase);
       setCoinTossResult(state.coinTossResult);
       setCurrentTurn(state.currentTurn);
+      setWinnerSessionId(state.winnerSessionId);
     };
 
     room.onStateChange(handleStateChange);
@@ -49,36 +54,125 @@ export default function BattleScreen({ room, userName, onFlee }: BattleScreenPro
       onFlee();
     });
 
+    room.onMessage("play_animation", (data: any) => {
+      const sessionId = room.sessionId;
+      const isMyAttack = data.attackerSessionId === sessionId;
+      const attackerKey = `${!isMyAttack ? 'opponent' : 'myPlayer'}_${data.attackerIndex}`;
+      const targetKey = `${isMyAttack ? 'opponent' : 'myPlayer'}_${data.targetIndex}`;
+      
+      const attackerEl = slotRefs.current[attackerKey];
+      const targetEl = slotRefs.current[targetKey];
+      
+      if (attackerEl && targetEl) {
+        const aRect = attackerEl.getBoundingClientRect();
+        const tRect = targetEl.getBoundingClientRect();
+        
+        // Calcular o centro das caixas
+        const startX = aRect.left + aRect.width / 2;
+        const startY = aRect.top + aRect.height / 2;
+        const endX = tRect.left + tRect.width / 2;
+        const endY = tRect.top + tRect.height / 2;
+        
+        const animId = Date.now() + Math.random();
+        
+        setActiveAnimations(prev => [...prev, {
+          id: animId,
+          startX, startY, endX, endY, type: data.type
+        }]);
+        
+        setTimeout(() => {
+          setActiveAnimations(prev => prev.filter(a => a.id !== animId));
+        }, 1000); // 1 segundo de duração do vôo
+      }
+    });
+
+    return () => {
+      room.removeAllListeners();
+    };
   }, [room, onFlee]);
 
-  const renderDragonSlot = (dragonType: string | undefined, index: number, isOpponent: boolean) => {
-    if (!dragonType) return <div key={index} className="w-24 h-24 opacity-0" />; // Empty slot
+  const [isTargeting, setIsTargeting] = useState(false);
+  const [attackType, setAttackType] = useState<string>("physical");
 
-    // Flipped sprite for opponent
-    const transform = isOpponent ? "scaleX(-1)" : "";
+  const handleAttackClick = (type: string) => {
+    if (isTargeting && attackType === type) {
+      // Clicou no mesmo botão pra cancelar
+      setIsTargeting(false);
+    } else {
+      setAttackType(type);
+      setIsTargeting(true);
+    }
+  };
 
-    // Animacao de flutuação basica com delay
+  const handleTargetSelect = (targetIndex: number) => {
+    if (!isTargeting || !isMyTurn) return;
+    
+    if (opponent.dragons[targetIndex]?.isDead) {
+      alert("Este dragão já foi derrotado!");
+      return;
+    }
+    
+    room.send("attack", { targetIndex, type: attackType });
+    setIsTargeting(false);
+  };
+
+  const renderDragonSlot = (dragon: any, index: number, isOpponent: boolean) => {
+    if (!dragon || !dragon.type) return <div key={index} className="w-24 h-24 opacity-0" />; 
+
+    const isDead = dragon.isDead;
+    const hpPercent = Math.max(0, (dragon.currentHp / dragon.maxHp) * 100);
+
+    const playerState = isOpponent ? opponent : myPlayer;
+    const attackOrder = [3, 4, 0, 1, 2];
+    const activeDragonIndex = playerState ? attackOrder[playerState.currentAttackStep || 0] : -1;
+    const isThisPlayerTurn = currentTurn === playerState?.sessionId;
+    const isCurrentlyAttacking = isThisPlayerTurn && activeDragonIndex === index && battlePhase === "battle" && !isDead;
+
     const animationDelay = `${index * 0.2}s`;
+    
+    const isClickableTarget = isTargeting && isOpponent && !isDead;
 
     return (
-      <div key={index} className="relative w-32 h-32 flex flex-col items-center justify-end">
+      <div 
+        key={index}
+        ref={(el) => { slotRefs.current[`${isOpponent ? 'opponent' : 'myPlayer'}_${index}`] = el; }}
+        onClick={() => isClickableTarget ? handleTargetSelect(index) : null}
+        className={`relative w-32 h-32 flex flex-col items-center justify-end transition-all ${
+          isDead ? 'opacity-30 grayscale filter' : ''
+        } ${isClickableTarget ? 'cursor-crosshair hover:scale-110 drop-shadow-[0_0_20px_rgba(231,76,60,1)]' : ''}`}
+      >
+        {/* Glow if attacking */}
+        {isCurrentlyAttacking && (
+           <div className="absolute inset-[-20px] bg-[#2ecc71]/40 rounded-full blur-[20px] animate-pulse pointer-events-none" />
+        )}
+        {isCurrentlyAttacking && (
+           <div className="absolute -top-12 text-[#2ecc71] font-black uppercase text-xs bg-black/80 border border-[#2ecc71]/50 px-2 py-1 rounded animate-bounce z-30">
+             ATACANTE
+           </div>
+        )}
+
         {/* Shadow */}
         <div className="absolute bottom-0 w-24 h-6 bg-black/50 rounded-[100%] blur-[3px]" />
         
-        {/* Sprite */}
-        <img 
-          src="/assets/fire-dragon-1.png" 
-          alt="Dragon" 
-          className="w-full h-full object-contain relative z-10 animate-[bounce_3s_infinite]"
-          style={{ transform, animationDelay }}
-        />
+        {/* Sprite Wrapped to protect scaleX from animation transform override */}
+        <div className={`relative z-10 w-full h-full flex justify-center items-end ${isOpponent ? '-scale-x-100' : ''}`}>
+          <img 
+            src="/assets/fire-dragon-1.png" 
+            alt="Dragon" 
+            className={`w-full h-full object-contain ${isDead ? '' : 'animate-[bounce_3s_infinite]'}`}
+            style={{ animationDelay }}
+          />
+        </div>
         
-        {/* HP Bar (Mock) */}
+        {/* HP Bar */}
         <div className="absolute -top-6 w-[120%] bg-black/80 p-1 rounded border border-white/20 z-20">
           <div className="w-full h-2 bg-red-900 rounded-sm overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-[100%] h-full bg-[#2ecc71] rounded-sm transition-all duration-300" />
+            <div 
+               className="absolute top-0 left-0 h-full bg-[#2ecc71] rounded-sm transition-all duration-300" 
+               style={{ width: `${hpPercent}%` }}
+            />
           </div>
-          <div className="text-[9px] font-black text-white text-center mt-[1px]">100 / 100</div>
+          <div className="text-[9px] font-black text-white text-center mt-[1px]">{dragon.currentHp} / {dragon.maxHp}</div>
         </div>
       </div>
     );
@@ -113,6 +207,76 @@ export default function BattleScreen({ room, userName, onFlee }: BattleScreenPro
   return (
     <div className="fixed inset-0 z-[200] flex flex-col bg-[#1e272e] overflow-hidden">
       
+      {/* END GAME OVERLAY */}
+      {battlePhase === "ended" && (
+        <div className="fixed inset-0 z-[400] bg-black/90 flex flex-col items-center justify-center backdrop-blur-md">
+          {winnerSessionId === myPlayer?.sessionId ? (
+            <h1 className="text-6xl font-black text-[#2ecc71] uppercase mb-8 drop-shadow-[0_0_20px_rgba(46,204,113,0.8)] animate-bounce">
+              VITÓRIA!
+            </h1>
+          ) : (
+            <h1 className="text-6xl font-black text-[#e74c3c] uppercase mb-8 drop-shadow-[0_0_20px_rgba(231,76,60,0.8)]">
+              DERROTA...
+            </h1>
+          )}
+          
+          <p className="text-xl text-white/70 mb-12">
+            A batalha terminou. Os deuses dos dragões decidiram o vencedor.
+          </p>
+
+          <button 
+            onClick={() => {
+              room.leave();
+              onFlee(); // Retorna para a ilha
+            }}
+            className="bg-[#3498db] hover:bg-[#2980b9] text-white font-black py-4 px-12 rounded-xl text-2xl uppercase shadow-[0_0_20px_rgba(52,152,219,0.5)] transition-all hover:scale-105"
+          >
+            Voltar à Ilha
+          </button>
+        </div>
+      )}
+
+      {/* ANIMATION LAYER */}
+      <div className="fixed inset-0 z-[250] pointer-events-none">
+        {activeAnimations.map(anim => {
+          const dx = anim.endX - anim.startX;
+          const dy = anim.endY - anim.startY;
+          
+          return (
+            <div
+              key={anim.id}
+              className={`absolute w-8 h-8 rounded-full shadow-[0_0_20px_rgba(255,255,255,1)] flex items-center justify-center ${
+                anim.type === 'magic' 
+                  ? 'bg-gradient-to-r from-purple-500 to-indigo-500 shadow-purple-500/80 animate-[spin_1s_linear_infinite]'
+                  : 'bg-white shadow-white/80 scale-50'
+              }`}
+              style={{
+                top: 0,
+                left: 0,
+                transform: `translate(${anim.startX - 16}px, ${anim.startY - 16}px)`,
+                animation: `flyToTarget 1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards`,
+                '--startX': `${anim.startX}px`,
+                '--startY': `${anim.startY}px`,
+                '--dx': `${dx}px`,
+                '--dy': `${dy}px`,
+              } as React.CSSProperties}
+            >
+              {anim.type === 'magic' && (
+                <div className="w-12 h-12 bg-purple-400/50 rounded-full blur-[8px] animate-pulse absolute" />
+              )}
+            </div>
+          );
+        })}
+        <style>{`
+          @keyframes flyToTarget {
+            0% { opacity: 0; transform: translate(calc(var(--startX) - 16px), calc(var(--startY) - 16px)); }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; transform: translate(calc(var(--startX) - 16px + var(--dx)), calc(var(--startY) - 16px + var(--dy))); }
+          }
+        `}</style>
+      </div>
+
       {/* COIN TOSS OVERLAY */}
       {battlePhase === "coin_toss" && (
         <CoinTossOverlay 
@@ -163,33 +327,45 @@ export default function BattleScreen({ room, userName, onFlee }: BattleScreenPro
         </div>
       </div>
 
-      {/* COMANDOS INFERIORES */}
-      <div className="relative z-10 h-48 bg-gradient-to-t from-black via-black/90 to-transparent p-6 flex flex-col justify-end">
-        <div className="flex justify-between items-end w-full max-w-7xl mx-auto">
-          <div className="flex-1">
-            <h3 className="text-white/80 font-black uppercase mb-2 text-sm tracking-widest">
-              Ações {isMyTurn ? <span className="text-[#2ecc71]">(SEU TURNO)</span> : <span className="text-white/30">(Aguarde...)</span>}
-            </h3>
+      {/* ACTION PANEL */}
+      <div className="h-48 bg-gradient-to-t from-black via-black/90 to-transparent border-t border-white/10 relative z-30">
+        <div className="max-w-6xl mx-auto h-full flex items-end justify-between p-8">
+          <div className="flex gap-4">
+            {myPlayer?.dragons.map((dragon: any, i: number) => (
+              <div key={i} className={`w-12 h-12 rounded bg-white/5 border border-white/10 overflow-hidden ${dragon.isDead ? 'opacity-30 grayscale' : ''}`}>
+                <img src="/assets/fire-dragon-1.png" alt="Dragon" className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex flex-col items-center">
+            <h3 className="text-xl font-black text-white uppercase tracking-widest mb-4">Ações</h3>
             <div className="flex gap-4">
               <button 
                 disabled={!isMyTurn}
+                onClick={() => handleAttackClick('physical')}
                 className={`border-2 px-8 py-4 rounded-xl font-bold uppercase transition-all ${
                   isMyTurn 
-                    ? 'bg-[#e74c3c] hover:bg-[#c0392b] border-[#c0392b] text-white shadow-[0_0_15px_rgba(231,76,60,0.5)]' 
+                    ? (isTargeting && attackType === 'physical'
+                        ? 'bg-[#c0392b] border-[#c0392b] text-white shadow-[inset_0_0_15px_rgba(0,0,0,0.5)] scale-95' 
+                        : 'bg-[#e74c3c] hover:bg-[#c0392b] border-[#c0392b] text-white shadow-[0_0_15px_rgba(231,76,60,0.5)]')
                     : 'bg-white/5 border-white/10 text-white/30 cursor-not-allowed'
                 }`}
               >
-                Ataque Físico
+                {isTargeting && attackType === 'physical' ? 'Selecione o Alvo' : 'Ataque Físico'}
               </button>
               <button 
                 disabled={!isMyTurn}
+                onClick={() => handleAttackClick('magic')}
                 className={`border-2 px-8 py-4 rounded-xl font-bold uppercase transition-all ${
                   isMyTurn 
-                    ? 'bg-[#9b59b6] hover:bg-[#8e44ad] border-[#8e44ad] text-white shadow-[0_0_15px_rgba(155,89,182,0.5)]' 
+                    ? (isTargeting && attackType === 'magic'
+                        ? 'bg-[#8e44ad] border-[#8e44ad] text-white shadow-[inset_0_0_15px_rgba(0,0,0,0.5)] scale-95' 
+                        : 'bg-[#9b59b6] hover:bg-[#8e44ad] border-[#8e44ad] text-white shadow-[0_0_15px_rgba(155,89,182,0.5)]')
                     : 'bg-white/5 border-white/10 text-white/30 cursor-not-allowed'
                 }`}
               >
-                Magia
+                {isTargeting && attackType === 'magic' ? 'Selecione o Alvo' : 'Magia'}
               </button>
             </div>
           </div>

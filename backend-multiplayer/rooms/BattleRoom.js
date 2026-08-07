@@ -2,6 +2,22 @@ import { Room } from 'colyseus';
 import * as schema from '@colyseus/schema';
 const { Schema, MapSchema, ArraySchema, type } = schema;
 
+class BattleDragon extends Schema {
+  constructor(type, maxHp) {
+    super();
+    this.type = type;
+    this.maxHp = maxHp;
+    this.currentHp = maxHp;
+    this.isDead = false;
+  }
+}
+schema.defineTypes(BattleDragon, {
+  type: "string",
+  maxHp: "number",
+  currentHp: "number",
+  isDead: "boolean"
+});
+
 class BattlePlayer extends Schema {
   constructor(sessionId, playerName, role) {
     super();
@@ -9,7 +25,8 @@ class BattlePlayer extends Schema {
     this.playerName = playerName;
     this.role = role;
     this.isReady = false;
-    this.dragons = new ArraySchema();
+    this.currentAttackStep = 0;
+    this.dragons = new ArraySchema(); // of BattleDragon
   }
 }
 schema.defineTypes(BattlePlayer, {
@@ -17,7 +34,8 @@ schema.defineTypes(BattlePlayer, {
   playerName: "string",
   role: "string",
   isReady: "boolean",
-  dragons: ["string"]
+  currentAttackStep: "number",
+  dragons: [BattleDragon]
 });
 
 class BattleState extends Schema {
@@ -27,13 +45,15 @@ class BattleState extends Schema {
     this.phase = "lobby"; // lobby, coin_toss, battle, ended
     this.currentTurn = "";
     this.coinTossResult = "";
+    this.winnerSessionId = "";
   }
 }
 schema.defineTypes(BattleState, {
   players: { map: BattlePlayer },
   phase: "string",
   currentTurn: "string",
-  coinTossResult: "string"
+  coinTossResult: "string",
+  winnerSessionId: "string"
 });
 
 export class BattleRoom extends Room {
@@ -46,7 +66,10 @@ export class BattleRoom extends Room {
       if (player && this.state.phase === "lobby") {
          const selected = message.dragons || [];
          const arr = new ArraySchema();
-         selected.slice(0, 5).forEach(d => arr.push(d));
+         selected.slice(0, 5).forEach(d => {
+           // Default mock HP for now
+           arr.push(new BattleDragon(d, 100));
+         });
          player.dragons = arr;
       }
     });
@@ -58,6 +81,82 @@ export class BattleRoom extends Room {
          this.checkAllReady();
       }
     });
+
+    this.onMessage("attack", (client, message) => {
+      // Validate turn
+      if (this.state.phase !== "battle" || this.state.currentTurn !== client.sessionId) return;
+      
+      const targetIndex = message.targetIndex; // 0 to 4
+      const attackType = message.type || "physical";
+      
+      // Find opponent
+      let opponent = null;
+      let attacker = this.state.players.get(client.sessionId);
+      this.state.players.forEach((p) => {
+        if (p.sessionId !== client.sessionId) opponent = p;
+      });
+      if (!opponent || !attacker) return;
+
+      const targetDragon = opponent.dragons[targetIndex];
+      if (!targetDragon || targetDragon.isDead) return;
+
+      // Identify attacker index for the broadcast
+      const attackOrder = [3, 4, 0, 1, 2];
+      const attackerIndex = attackOrder[attacker.currentAttackStep];
+
+      // Broadcast animation BEFORE applying damage state
+      this.broadcast("play_animation", {
+        attackerSessionId: client.sessionId,
+        attackerIndex: attackerIndex,
+        targetSessionId: opponent.sessionId,
+        targetIndex: targetIndex,
+        type: attackType
+      });
+
+      // Apply damage
+      let damage = 0;
+      if (attackType === "magic") {
+        damage = Math.floor(Math.random() * 21) + 25; // 25 to 45
+      } else {
+        damage = Math.floor(Math.random() * 21) + 15; // 15 to 35
+      }
+      
+      targetDragon.currentHp -= damage;
+      if (targetDragon.currentHp <= 0) {
+        targetDragon.currentHp = 0;
+        targetDragon.isDead = true;
+      }
+
+      // Check win condition
+      let allDead = true;
+      opponent.dragons.forEach(d => {
+        if (!d.isDead) allDead = false;
+      });
+
+      if (allDead) {
+        this.state.phase = "ended";
+        this.state.winnerSessionId = client.sessionId;
+        return; // End of battle
+      }
+
+      // Find next attacker step for the current player
+      this.advanceAttackStep(attacker);
+
+      // Pass turn
+      this.state.currentTurn = opponent.sessionId;
+    });
+  }
+
+  advanceAttackStep(player) {
+    const attackOrder = [3, 4, 0, 1, 2];
+    for (let i = 0; i < 5; i++) {
+      player.currentAttackStep = (player.currentAttackStep + 1) % 5;
+      const nextDragonIndex = attackOrder[player.currentAttackStep];
+      const nextDragon = player.dragons[nextDragonIndex];
+      if (nextDragon && !nextDragon.isDead) {
+        break; // Found alive dragon
+      }
+    }
   }
 
   checkAllReady() {
@@ -99,8 +198,10 @@ export class BattleRoom extends Room {
 
   onLeave(client, consented) {
     console.log(`[BattleRoom] ${client.sessionId} left!`);
-    this.broadcast("opponent_left");
-    this.disconnect();
+    if (this.state.phase !== "ended") {
+      this.broadcast("opponent_left");
+      this.disconnect();
+    }
   }
 
   onDispose() {
