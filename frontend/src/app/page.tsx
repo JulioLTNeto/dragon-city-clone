@@ -97,6 +97,12 @@ export default function Home() {
     setIsSaving(false);
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.reload();
+  };
+
   const handleStartPlacement = (itemId: string) => {
     // Para ovos de dragão, podemos comprar direto no futuro.
     // Mas para habitats, entramos no modo de construção:
@@ -301,13 +307,21 @@ export default function Home() {
                 />
               </div>
 
-              <button 
-                onClick={handleSaveSettings}
-                disabled={isSaving}
-                className="w-full bg-[#e67e22] hover:bg-[#d35400] text-white font-black py-4 px-4 rounded-xl border-b-6 border-[#a04000] active:border-b-0 active:translate-y-2 transition-all uppercase text-xl shadow-lg mt-8 disabled:opacity-50"
-              >
-                {isSaving ? "Salvando..." : "Salvar Alterações"}
-              </button>
+              <div className="flex gap-4 mt-8">
+                <button 
+                  onClick={handleLogout}
+                  className="w-1/3 bg-red-600 hover:bg-red-700 text-white font-black py-4 px-2 rounded-xl border-b-6 border-red-900 active:border-b-0 active:translate-y-2 transition-all uppercase text-lg shadow-lg"
+                >
+                  Sair
+                </button>
+                <button 
+                  onClick={handleSaveSettings}
+                  disabled={isSaving}
+                  className="w-2/3 bg-[#e67e22] hover:bg-[#d35400] text-white font-black py-4 px-4 rounded-xl border-b-6 border-[#a04000] active:border-b-0 active:translate-y-2 transition-all uppercase text-lg shadow-lg disabled:opacity-50"
+                >
+                  {isSaving ? "Salvando..." : "Salvar"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
