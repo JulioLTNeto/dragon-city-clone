@@ -9,6 +9,7 @@ interface HUDProps {
   onOpenInfo: () => void;
   onOpenMarket: () => void;
   onAddGold?: () => void;
+  onOpenBattle: () => void;
 }
 
 export default function HUD({ 
@@ -19,7 +20,8 @@ export default function HUD({
   onOpenConfig, 
   onOpenInfo,
   onOpenMarket,
-  onAddGold
+  onAddGold,
+  onOpenBattle
 }: HUDProps) {
   return (
     <div className="absolute inset-0 z-10 pointer-events-none flex flex-col justify-between p-4">
@@ -102,7 +104,7 @@ export default function HUD({
 
         {/* Rodapé Direito: Batalha e Social */}
         <div className="flex gap-3">
-          <MenuButton icon="⚔️" label="Batalha" color="red" notification={true} />
+          <MenuButton icon="⚔️" label="Batalha" color="red" notification={true} onClick={onOpenBattle} />
           <MenuButton icon="👥" label="Social" color="blue" />
         </div>
       </div>

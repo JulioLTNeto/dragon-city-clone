@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import HUD from "@/components/ui/HUD";
 import MultiplayerChat from "@/components/ui/MultiplayerChat";
+import DragonSelectionScreen from "@/components/ui/DragonSelectionScreen";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -28,6 +29,10 @@ export default function Home() {
   const [placementMode, setPlacementMode] = useState<string | null>(null);
   const [movingItemId, setMovingItemId] = useState<string | null>(null);
   const [placedItems, setPlacedItems] = useState<any[]>([]);
+
+  const [battleReservation, setBattleReservation] = useState<any>(null);
+  const [isMultiplayerOpen, setIsMultiplayerOpen] = useState(false);
+  const [multiplayerTab, setMultiplayerTab] = useState<"chat" | "players">("chat");
 
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
@@ -264,6 +269,10 @@ export default function Home() {
         onOpenInfo={() => setIsInfoOpen(true)}
         onOpenMarket={() => setIsMarketOpen(true)}
         onAddGold={handleAddGold}
+        onOpenBattle={() => {
+          setIsMultiplayerOpen(true);
+          setMultiplayerTab("players");
+        }}
       />
 
       {/* MODAL DE CONFIGURAÇÃO SOBREPOSTO */}
@@ -490,8 +499,31 @@ export default function Home() {
         </div>
       )}
 
-      {/* COMPONENTE DE CHAT E MULTIPLAYER */}
-      <MultiplayerChat userName={userName} />
+      {/* BATTLE SELECTION SCREEN */}
+      {battleReservation && (
+        <DragonSelectionScreen 
+          reservation={battleReservation}
+          userName={userName}
+          placedItems={placedItems}
+          onClose={() => setBattleReservation(null)}
+          onBattleStart={(room) => {
+            alert("🔥 A BATALHA VAI COMEÇAR! (Esta tela será feita no futuro)");
+            // Depois será criada a transição para a BattleScreen de verdade.
+          }}
+        />
+      )}
+
+      {/* COMPONENTE DE MULTIPLAYER CHAT */}
+      {isAuthenticated && (
+        <MultiplayerChat 
+          userName={userName} 
+          onBattleReady={(res) => setBattleReservation(res)}
+          isOpen={isMultiplayerOpen}
+          setIsOpen={setIsMultiplayerOpen}
+          activeTab={multiplayerTab}
+          setActiveTab={setMultiplayerTab}
+        />
+      )}
     </main>
   );
 }

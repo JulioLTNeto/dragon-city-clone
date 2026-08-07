@@ -24,10 +24,12 @@ app.get('/', (req, res) => {
 });
 
 import { GlobalRoom } from './rooms/GlobalRoom.js';
+import { BattleRoom } from './rooms/BattleRoom.js';
 
 // Define your Colyseus room here
 // gameServer.define('battle_room', BattleRoom);
 gameServer.define('global_room', GlobalRoom);
+gameServer.define('battle_room', BattleRoom);
 
 gameServer.listen(port).then(() => {
     console.log(`🎮 Multiplayer Game Server running on ws://localhost:${port}`);
