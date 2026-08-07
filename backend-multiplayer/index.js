@@ -23,8 +23,11 @@ app.get('/', (req, res) => {
     res.json({ message: 'Dragon City Clone Multiplayer Server running' });
 });
 
+import { GlobalRoom } from './rooms/GlobalRoom.js';
+
 // Define your Colyseus room here
 // gameServer.define('battle_room', BattleRoom);
+gameServer.define('global_room', GlobalRoom);
 
 gameServer.listen(port).then(() => {
     console.log(`🎮 Multiplayer Game Server running on ws://localhost:${port}`);

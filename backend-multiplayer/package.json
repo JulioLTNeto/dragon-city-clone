@@ -11,10 +11,11 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@colyseus/redis-driver": "^0.17.7",
-    "@colyseus/redis-presence": "^0.17.7",
-    "@colyseus/ws-transport": "^0.17.13",
-    "colyseus": "^0.17.10",
+    "@colyseus/redis-driver": "^0.16.0",
+    "@colyseus/redis-presence": "^0.16.0",
+    "@colyseus/schema": "^3.0.76",
+    "@colyseus/ws-transport": "^0.16.3",
+    "colyseus": "^0.16.5",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "redis": "^6.2.0"

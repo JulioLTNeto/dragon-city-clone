@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import HUD from "@/components/ui/HUD";
+import MultiplayerChat from "@/components/ui/MultiplayerChat";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -49,18 +50,24 @@ export default function Home() {
       router.push("/login");
     } else {
       setIsAuthenticated(true);
-      const user = JSON.parse(userStr);
-      setUserName(user.name || "");
-      setUserEmail(user.email || "");
-      setUserVolume(user.volume !== undefined ? user.volume : 100);
-      setUserGold(user.gold || 0);
-      setUserGems(user.gems || 0);
-      setUserFood(user.food || 0);
-      setUserDragons(user.dragons || 0);
-      setUserHabitats(user.habitats || 0);
-      setUserIslands(user.islands || 1);
-      setUserLevel(user.level || 1);
-      setPlacedItems(user.placedItems || []);
+      try {
+        const user = JSON.parse(userStr);
+        if (user) {
+          setUserName(user.name || "Mestre Anônimo");
+          setUserEmail(user.email || "");
+          setUserVolume(user.volume !== undefined ? user.volume : 100);
+          setUserGold(user.gold || 0);
+          setUserGems(user.gems || 0);
+          setUserFood(user.food || 0);
+          setUserDragons(user.dragons || 0);
+          setUserHabitats(user.habitats || 0);
+          setUserIslands(user.islands || 1);
+          setUserLevel(user.level || 1);
+          setPlacedItems(user.placedItems || []);
+        }
+      } catch (e) {
+        console.error("Error parsing user from localStorage", e);
+      }
     }
   }, [router]);
 
@@ -468,6 +475,9 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* COMPONENTE DE CHAT E MULTIPLAYER */}
+      <MultiplayerChat userName={userName} />
     </main>
   );
 }
