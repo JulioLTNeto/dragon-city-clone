@@ -122,6 +122,7 @@ export default function GameCanvas({
         island.anchor.set(0.5);
         
         const itemsContainer = new PIXI.Container();
+        itemsContainer.sortableChildren = true;
         placedItemsContainerRef.current = itemsContainer;
 
         islandContainer.addChild(island);
@@ -287,75 +288,119 @@ export default function GameCanvas({
     const itemsContainer = placedItemsContainerRef.current;
     if (!itemsContainer || !isPixiReady) return;
 
-    itemsContainer.removeChildren();
+    // Construir mapa de sprites existentes para diffing inteligente
+    const existingSprites = new Map();
+    itemsContainer.children.forEach((child: any) => {
+      if (child.isHabitat) {
+        existingSprites.set(`habitat_${child.itemId}`, child);
+      } else if (child.isDragon) {
+        existingSprites.set(`dragon_${child.dragonId}`, child);
+      }
+    });
+
+    const spritesToKeep = new Set();
 
     placedItems.forEach(item => {
       if (movingItemId === item._id) return;
 
       if (item.itemType === 'fire_habitat') {
-        const sprite = PIXI.Sprite.from("habitat");
-        sprite.anchor.set(0.5);
-        sprite.width = 150;
-        sprite.scale.y = sprite.scale.x;
+        const habitatKey = `habitat_${item._id}`;
+        let sprite = existingSprites.get(habitatKey);
+        spritesToKeep.add(habitatKey);
+
+        if (!sprite) {
+          sprite = PIXI.Sprite.from("habitat");
+          sprite.anchor.set(0.5);
+          sprite.width = 150;
+          sprite.scale.y = sprite.scale.x;
+          
+          // Identificadores para o sistema de seleção
+          (sprite as any).isHabitat = true;
+          (sprite as any).itemId = item._id;
+          
+          sprite.eventMode = 'static';
+          sprite.cursor = 'pointer';
+          sprite.on('pointerdown', (e: any) => {
+            e.stopPropagation(); 
+            const { placementMode, movingItemId } = propsRef.current;
+            if (!placementMode && !movingItemId) {
+               setSelectedItemId(item._id);
+            }
+          });
+          itemsContainer.addChild(sprite);
+        }
+
         sprite.x = item.x;
         sprite.y = item.y;
-        
-        // Identificadores para o sistema de seleção
-        (sprite as any).isHabitat = true;
-        (sprite as any).itemId = item._id;
-        
-        sprite.eventMode = 'static';
-        sprite.cursor = 'pointer';
-        sprite.on('pointerdown', (e) => {
-          e.stopPropagation(); 
-          const { placementMode, movingItemId } = propsRef.current;
-          if (!placementMode && !movingItemId) {
-             setSelectedItemId(item._id);
-          }
-        });
-
-        itemsContainer.addChild(sprite);
+        sprite.zIndex = item.y;
 
         // RENDER DRAGONS INSIDE HABITAT
         if (item.dragons && item.dragons.length > 0) {
            item.dragons.forEach((dragonType: string, index: number) => {
-              const dSprite = PIXI.Sprite.from(dragonType === 'fire_dragon' ? "dragon" : "dragon");
-              dSprite.anchor.set(0.5);
-              dSprite.width = 60;
-              dSprite.scale.y = dSprite.scale.x;
-              
-              // Setup da Animação
-              const spawnOffsetX = (Math.random() * 80) - 40;
-              const spawnOffsetY = (Math.random() * 30) - 10;
-              
-              (dSprite as any).isDragon = true;
-              (dSprite as any).animState = {
-                startX: item.x, // Centro do habitat
-                targetOffset: (Math.random() * 80) - 40, // Ponto inicial aleatório
-                speed: 0.1 + Math.random() * 0.05, // pixels por frame (lento)
-                pauseTimer: Math.random() * 60, // pausa inicial
-              };
+              const dragonKey = `dragon_${item._id}_${index}`;
+              let dSprite = existingSprites.get(dragonKey);
+              spritesToKeep.add(dragonKey);
 
-              // Posicionamento inicial
-              dSprite.x = item.x + spawnOffsetX;
-              dSprite.y = item.y + spawnOffsetY;
-              
-              // Identificador para seleção
-              (dSprite as any).habitatId = item._id;
+              if (!dSprite) {
+                dSprite = PIXI.Sprite.from(dragonType === 'fire_dragon' ? "dragon" : "dragon");
+                dSprite.anchor.set(0.5);
+                dSprite.width = 60;
+                dSprite.scale.y = dSprite.scale.x;
+                
+                const spawnOffsetX = (Math.random() * 80) - 40;
+                const spawnOffsetY = (Math.random() * 30) - 10;
+                
+                (dSprite as any).isDragon = true;
+                (dSprite as any).dragonId = `${item._id}_${index}`;
+                (dSprite as any).habitatId = item._id;
+                (dSprite as any).spawnOffsetY = spawnOffsetY;
+                
+                (dSprite as any).animState = {
+                  startX: item.x, // Centro do habitat
+                  targetOffset: (Math.random() * 80) - 40, 
+                  speed: 0.1 + Math.random() * 0.05, 
+                  pauseTimer: Math.random() * 60, 
+                };
 
-              dSprite.eventMode = 'static';
-              dSprite.cursor = 'pointer';
-              dSprite.on('pointerdown', (e) => {
-                e.stopPropagation(); 
-                const { placementMode, movingItemId } = propsRef.current;
-                if (!placementMode && !movingItemId) {
-                   setSelectedItemId(item._id);
+                // Posicionamento inicial
+                dSprite.x = item.x + spawnOffsetX;
+                dSprite.y = item.y + spawnOffsetY;
+                
+                dSprite.eventMode = 'static';
+                dSprite.cursor = 'pointer';
+                dSprite.on('pointerdown', (e: any) => {
+                  e.stopPropagation(); 
+                  const { placementMode, movingItemId } = propsRef.current;
+                  if (!placementMode && !movingItemId) {
+                     setSelectedItemId(item._id);
+                  }
+                });
+
+                itemsContainer.addChild(dSprite);
+              } else {
+                // Atualiza o startX para caso o habitat tenha se movido
+                dSprite.animState.startX = item.x;
+                // Atualiza o Y instantaneamente (dragões não andam em Y)
+                dSprite.y = item.y + dSprite.spawnOffsetY;
+                
+                // Se o habitat moveu demais (teleporte), puxa o dragão junto no eixo X
+                if (Math.abs(dSprite.x - item.x) > 150) {
+                   dSprite.x = item.x + (Math.random() * 80) - 40;
                 }
-              });
-
-              itemsContainer.addChild(dSprite);
+              }
+              
+              // Atualiza o zIndex sempre
+              dSprite.zIndex = item.y + 1 + (dSprite.spawnOffsetY / 100);
            });
         }
+      }
+    });
+
+    // Remove sprites que não existem mais (itens deletados/vendidos)
+    existingSprites.forEach((sprite, key) => {
+      if (!spritesToKeep.has(key)) {
+        itemsContainer.removeChild(sprite);
+        sprite.destroy();
       }
     });
 
